@@ -2,11 +2,11 @@
 /**
   ******************************************************************************
   * @file           : main.c
-  * @brief          : Main program body
+  * @brief          : Lab 2
   ******************************************************************************
   * @attention
   *
-  * Copyright (c) 2024 STMicroelectronics.
+  * Copyright (c) 2023 STMicroelectronics.
   * All rights reserved.
   *
   * This software is licensed under terms that can be found in the LICENSE file
@@ -22,76 +22,84 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /* USER CODE END Includes */
 
+/* Private typedef -----------------------------------------------------------*/
+/* USER CODE BEGIN PTD */
+
+/* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /* USER CODE END PD */
+
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
+
+/* USER CODE END PM */
+
+/* Private variables ---------------------------------------------------------*/
+
+/* USER CODE BEGIN PV */
+
+/* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+/* USER CODE BEGIN PFP */
 
-/**
-  * @brief  The application entry point.
-  * @retval int
-  */
+/* USER CODE END PFP */
+
+/* Private user code ---------------------------------------------------------*/
+/* USER CODE BEGIN 0 */
+
+/* USER CODE END 0 */
+
 int main(void)
 {
-  HAL_Init();
-  SystemClock_Config();
+     HAL_Init();
+     __HAL_RCC_GPIOC_CLK_ENABLE(); // clock C enabled
 
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-  while (1)
-  {
+     __HAL_RCC_GPIOA_CLK_ENABLE(); // clock A enabled
+
+     // configuring GPIO pins 6, 7, 8, and 9 on port c (GPIO port c is called GPIOC)
+     // (1<<(1st GPIO pin number)*2) | (1<<( 2nd GPIO pin number)*2) etc --> notation to set pins to output mode
+     // using MODER (GPIO port mode register), setting mode to 1 categorizes pins to be in output mode
+     GPIOC->MODER |= (1<<6*2) | (1<<7*2) | (1<<8*2) | (1<<9*2);
+
+    // SystemClock_Config();
+     // MODER with mode to 0 --> input mode
+     GPIOA->MODER |= (0<<(0*2)); //  makes pin 0 (for port A) an input
+
+     // PUPDR: GPIO pull-up/pull-down resister. 1<<0: shifts 1 to left by 0 positions (means unchanged). 
+     // GPIOA->MODER |= (0<<(0*2)); //  makes pin 0 (for port A) an input
+     // (1<<0) --> mode/value 1, pin 0: enable pull-up for pin 0
+     GPIOA->PUPDR |= (1<<0); 
+
+     EXTI->IMR |= (1<<0); // interrupt mask register enabled (from line 0)
+     EXTI->RTSR |= (1<<0); // sets up external interrupt on the rising edge (transition from low to high voltage --> triggers EXTI0 interrupt)
+
+     // RCC: reset and clock control, APB2ENR: APB2 peripheral clock enable register (used to enable/disable the clock to such peripherals)
+     // RCC_APB2ENR_SYSCFGCOMPEN: bit mask to sys config controller (SYSCFG).
+     // Takes bits from APB2 clk en register, does bitwise OR w/ value from bitmask of sys config controller, and writes result to APb2 clk en register.
+     // Done to set SYSCFG/COMP clock enable bit to 1 while not changing any other bits
+     RCC->APB2ENR |= RCC_APB2ENR_SYSCFGCOMPEN;
+
+     SYSCFG->EXTICR[0] |= SYSCFG_EXTICR1_EXTI0_PA; // configs system copntroller to route external interrupt from pin 0 on GPIO port A (PA0) to the EXTI line 0.
+     // Done by seeting the bits in one of exernal interrupt config registers (EXTICR)
 
 
+     NVIC_EnableIRQ(EXTI0_1_IRQn); // external interrupt enabled for pin 0
+     NVIC_SetPriority(EXTI0_1_IRQn, 3); // pin 0 priority set to 3
+     NVIC_SetPriority(SysTick_IRQn, 2); // sysTick priority set to 2
 
-
-
-
-
-
-
-
-
-
-
-  }
-
-  /* USER CODE END 3 */
-}
+     while (1)
+     {
+       HAL_Delay(400);
+       GPIOC->ODR ^= (1<<6);
+         // coninuous loop, any interrupt enables GPIO pins!
+     }
+	}
 
 /**
   * @brief System Clock Configuration
