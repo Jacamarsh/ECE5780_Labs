@@ -122,29 +122,30 @@ void PendSV_Handler(void)
 /**
   * @brief This function handles System tick timer.
   */
-// code to be amended/placed in the stm32f0xx_it.c file under Application/User uVision project folder
 void SysTick_Handler(void)
 {
-    static uint32_t counter = 0;
-    HAL_IncTick(); // clockès tick incrementor
+  /* USER CODE BEGIN SysTick_IRQn 0 */
 
-    counter++;
-    if (counter >= 200) // If SysTick configèd to iterate every 1ms...
-    {
-        GPIOC->ODR ^= (1<<7); // Toggle the blue LED (PC7)
-        counter = 0;
-    }
-}
+  /* USER CODE END SysTick_IRQn 0 */
+  HAL_IncTick();
+  /* USER CODE BEGIN SysTick_IRQn 1 */
 
-void EXTI0_1_IRQHandler(void)
-{
-    if (EXTI->PR & EXTI_PR_PR0) // Making sure EXTI line 0 caused interrupt
-    {
-        GPIOC->ODR ^= (1<<8); // Toggling my Orange LED (PC8)
-        GPIOC->ODR ^= (1<<9); // Toggling my Green LED (PC9)
-
-        EXTI->PR = EXTI_PR_PR0; // Clear any pending bits by writing 1
-    }
+	static uint32_t tick_count = 0;
+	tick_count++;
+	if (tick_count == 100) //  200 ms * 5 = 1000ms = 1 second
+	{
+		GPIOC->ODR ^= (1 << 7); // Toggling PC7 (blue LED)
+		
+		tick_count = 0; // resetting tick count before next iteration
+	}
+	
+	
+	
+	
+	
+	
+	
+  /* USER CODE END SysTick_IRQn 1 */
 }
 
 /******************************************************************************/
