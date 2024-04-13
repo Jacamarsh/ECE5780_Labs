@@ -46,60 +46,264 @@
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+
+
+// Declaring EXTI0_1_IRQ's Handler Function
+void EXTIO_1_IRQHandler (void);
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
-/* Private user code ---------------------------------------------------------*/
+/* Private user code ---- -----------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
 /* USER CODE END 0 */
 
+
+//-----------------------------------------------------------
+
+/**
+  * @brief  The application entry point.
+  * @retval int
+  */
+	
+	/*		First check-off methods
+	
 int main(void)
 {
-     HAL_Init();
-     __HAL_RCC_GPIOC_CLK_ENABLE(); // clock C enabled
+  // Reset of all peripherals, Initializes the Flash interface and the Systick. 
+  HAL_Init();
 
-     __HAL_RCC_GPIOA_CLK_ENABLE(); // clock A enabled
+  // Configure the system clock 
+	__HAL_RCC_GPIOC_CLK_ENABLE(); // Enable the GPIOC clock in the RCC
+	__HAL_RCC_GPIOA_CLK_ENABLE(); // Enable the GPIOA clock in the RCC
+	
+	// Setting PC6-9 (all 4 LEDs) to general purpose mode
+	GPIOC->MODER |= (1<<6*2) | (1<<7*2) | (1<<8*2) | (1<<9*2);
+	
+  SystemClock_Config();
+	
+	GPIOC->ODR |= (1<<9); // setting PC9 (green LED) to high
+	
+	//setting PA0 (User btn) to input mode
+	GPIOA->MODER &= ~((1<<0) | (1<<1)); 	
+	
+	// setting PAO (user btn) to low-speed
+	GPIOA->OSPEEDR |= (1<<0); 
+	
+	// setting PA0 (User btn) to pull-down mode --> low, then then (to VCC) when pressed
+	GPIOA->PUPDR &= ~(1<<0);
+	GPIOA->PUPDR |= (1<<1);
+	
+	//4. Configure the multiplexer to route PA0 to the EXTI input line 0 (EXTI0).
+	// EXTI line 0 enabled (handles external interrupts from GPIO pins)
+	//interrupt request not masked
+	EXTI->IMR |= (1<<0); 
+	
+	// EXTI line 0 configured to trigger on: rising edge
+	// When PAO goes from low to high, triggers interrupt
+	// Assuming since btn starts low: interrupt when btn is just being pressed down
+	EXTI->RTSR |= (1<<0); 
+	
+	// For EXTI0, all PA0, PB0, PC0, etc to 16 are all grouped up using multiplexors to EXTI0
+	// Yet, we need configuration with actual button (PA0) to get external interrupt working
+	// So: configure SYSCFG pin multiplexers to connect 2 signals together:
+	//1. Use the RCC to enable the peripheral clock to the SYSCFG peripheral.
+			// APB2 Enable register for RCC set to its SYSCFG comparator and clock enable
+			// aka, enables clock for SYSCFG peripheral, which used to configure EXTI lines
+	RCC->APB2ENR |= RCC_APB2ENR_SYSCFGCOMPEN;
 
-     // configuring GPIO pins 6, 7, 8, and 9 on port c (GPIO port c is called GPIOC)
-     // (1<<(1st GPIO pin number)*2) | (1<<( 2nd GPIO pin number)*2) etc --> notation to set pins to output mode
-     // using MODER (GPIO port mode register), setting mode to 1 categorizes pins to be in output mode
-     GPIOC->MODER |= (1<<6*2) | (1<<7*2) | (1<<8*2) | (1<<9*2);
+	//2. Determine which SYSCFG multiplexer can route PA0 to the EXTI peripheral.
+	// The multiplexer that can route PA0 to the EXTI peripheral is: SYSCFG_EXTICR1
 
-    // SystemClock_Config();
-     // MODER with mode to 0 --> input mode
-     GPIOA->MODER |= (0<<(0*2)); //  makes pin 0 (for port A) an input
+	//3. Each of the EXTICRx registers control multiple pin multiplexers. Find which register contains
+	//the configuration bits for the required multiplexer.
+	// PA0 connected to EXTI0, so configure multiplexer for EXTI0.
+	// Configuratio bits for EXTI0 --> Located in EXTICR[0] register
+	
+	
+	
+	
+	//4. Configure the multiplexer to route PA0 to the EXTI input line 0 (EXTI0).
+	// Selects PA0 (user btn) as source input for EXTI line 0
+	SYSCFG->EXTICR[0] &= ~(SYSCFG_EXTICR1_EXTI0_Msk); // Clear EXTI0 bits
+	SYSCFG->EXTICR[0] |= SYSCFG_EXTICR1_EXTI0_PA; // Set PA0 to EXITI0
+	
+	 //Enables EXTI_1_IRQn interrupt in the NVIC. Interrupt number for lines 0 and 1: EXTI0_1_IRQn
+	NVIC_EnableIRQ(EXTI0_1_IRQn);
+	
+	// Sets priority if EXTI0_1_IRQn interrupt to 1 (the lower the number, the higher the priority)
+	NVIC_SetPriority(EXTI0_1_IRQn, 1);
+	// Sets priority of SysTick interrupt to 2 (interrupt used for system timing)
+	//NVIC_SetPriority(SysTick_IRQn, 2);
+	// Assumed: Default interrupt priority 1: Inhabited by the reset button (RESET btn comes first! duh!)
+	
+	
+	// 2.5 - Writing the EXTI Interrupt Handler
+	//1. Handler name we declared: EXTI0_1_IRQn
+	//2. Declare handler function (we wrote the method below main in this main.c file, and declared it above main.c) 
+	
+	
+	
+  while (1)
+  {
+		HAL_Delay(400);
+		// Toggles PC6 (Red LED)
+		GPIOC->ODR ^= (1<<6);
+  }
 
-     // PUPDR: GPIO pull-up/pull-down resister. 1<<0: shifts 1 to left by 0 positions (means unchanged). 
-     // GPIOA->MODER |= (0<<(0*2)); //  makes pin 0 (for port A) an input
-     // (1<<0) --> mode/value 1, pin 0: enable pull-up for pin 0
-     GPIOA->PUPDR |= (1<<0); 
+	
+}
 
-     EXTI->IMR |= (1<<0); // interrupt mask register enabled (from line 0)
-     EXTI->RTSR |= (1<<0); // sets up external interrupt on the rising edge (transition from low to high voltage --> triggers EXTI0 interrupt)
+// While pre-generated interrupt handlers exist in stm32f0xx_it.h,
+// They can be declared anywhere, so we will put them here!
+void EXTI0_1_IRQHandler(void){
+	GPIOC->ODR ^= (1<<8) | (1<<9); // Toggling PC8 and PC9 (green and orange LEDs)
+	
+	// Clearing flag for input line 0 of EXTI Pending Register
+	// Done to prevent looping. basically acknowledges its done, no longer pending
+	EXTI->PR |= (1<<0); 
+}
+//-----------------------------------------------------------
 
-     // RCC: reset and clock control, APB2ENR: APB2 peripheral clock enable register (used to enable/disable the clock to such peripherals)
-     // RCC_APB2ENR_SYSCFGCOMPEN: bit mask to sys config controller (SYSCFG).
-     // Takes bits from APB2 clk en register, does bitwise OR w/ value from bitmask of sys config controller, and writes result to APb2 clk en register.
-     // Done to set SYSCFG/COMP clock enable bit to 1 while not changing any other bits
-     RCC->APB2ENR |= RCC_APB2ENR_SYSCFGCOMPEN;
-
-     SYSCFG->EXTICR[0] |= SYSCFG_EXTICR1_EXTI0_PA; // configs system copntroller to route external interrupt from pin 0 on GPIO port A (PA0) to the EXTI line 0.
-     // Done by seeting the bits in one of exernal interrupt config registers (EXTICR)
+*/
 
 
-     NVIC_EnableIRQ(EXTI0_1_IRQn); // external interrupt enabled for pin 0
-     NVIC_SetPriority(EXTI0_1_IRQn, 3); // pin 0 priority set to 3
-     NVIC_SetPriority(SysTick_IRQn, 2); // sysTick priority set to 2
 
-     while (1)
-     {
-       HAL_Delay(400);
-       GPIOC->ODR ^= (1<<6);
-         // coninuous loop, any interrupt enables GPIO pins!
-     }
-	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//-----------------------------------------------------------
+
+/**
+  * @brief  The application entry point.
+  * @retval int
+  */
+	
+	//				2nd Check-off methods
+int main(void)
+{
+  // Reset of all peripherals, Initializes the Flash interface and the Systick. 
+  HAL_Init();
+
+  // Configure the system clock 
+	__HAL_RCC_GPIOC_CLK_ENABLE(); // Enable the GPIOC clock in the RCC
+	__HAL_RCC_GPIOA_CLK_ENABLE(); // Enable the GPIOA clock in the RCC
+	
+	// Setting PC6-9 (all 4 LEDs) to general purpose mode
+	GPIOC->MODER |= (1<<6*2) | (1<<7*2) | (1<<8*2) | (1<<9*2);
+	
+  SystemClock_Config();
+	
+	GPIOC->ODR |= (1<<9); // setting PC9 (green LED) to high
+	
+	//setting PA0 (User btn) to input mode
+	GPIOA->MODER &= ~((1<<0) | (1<<1)); 	
+	
+	// setting PAO (user btn) to low-speed
+	GPIOA->OSPEEDR |= (1<<0); 
+	
+	// setting PA0 (User btn) to pull-down mode --> low, then then (to VCC) when pressed
+	GPIOA->PUPDR &= ~(1<<0);
+	GPIOA->PUPDR |= (1<<1);
+	
+	//4. Configure the multiplexer to route PA0 to the EXTI input line 0 (EXTI0).
+	// EXTI line 0 enabled (handles external interrupts from GPIO pins)
+	//interrupt request not masked
+	EXTI->IMR |= (1<<0); 
+	
+	// EXTI line 0 configured to trigger on: rising edge
+	// When PAO goes from low to high, triggers interrupt
+	// Assuming since btn starts low: interrupt when btn is just being pressed down
+	EXTI->RTSR |= (1<<0); 
+	
+	// For EXTI0, all PA0, PB0, PC0, etc to 16 are all grouped up using multiplexors to EXTI0
+	// Yet, we need configuration with actual button (PA0) to get external interrupt working
+	// So: configure SYSCFG pin multiplexers to connect 2 signals together:
+	//1. Use the RCC to enable the peripheral clock to the SYSCFG peripheral.
+			// APB2 Enable register for RCC set to its SYSCFG comparator and clock enable
+			// aka, enables clock for SYSCFG peripheral, which used to configure EXTI lines
+	RCC->APB2ENR |= RCC_APB2ENR_SYSCFGCOMPEN;
+
+	//2. Determine which SYSCFG multiplexer can route PA0 to the EXTI peripheral.
+	// The multiplexer that can route PA0 to the EXTI peripheral is: SYSCFG_EXTICR1
+
+	//3. Each of the EXTICRx registers control multiple pin multiplexers. Find which register contains
+	//the configuration bits for the required multiplexer.
+	// PA0 connected to EXTI0, so configure multiplexer for EXTI0.
+	// Configuratio bits for EXTI0 --> Located in EXTICR[0] register
+	
+	
+	
+	
+	//4. Configure the multiplexer to route PA0 to the EXTI input line 0 (EXTI0).
+	// Selects PA0 (user btn) as source input for EXTI line 0
+	SYSCFG->EXTICR[0] &= ~(SYSCFG_EXTICR1_EXTI0_Msk); // Clear EXTI0 bits
+	SYSCFG->EXTICR[0] |= SYSCFG_EXTICR1_EXTI0_PA; // Set PA0 to EXITI0
+	
+	 //Enables EXTI_1_IRQn interrupt in the NVIC. Interrupt number for lines 0 and 1: EXTI0_1_IRQn
+	NVIC_EnableIRQ(EXTI0_1_IRQn);
+
+	
+	// Sets priority if EXTI0_1_IRQn interrupt to 1 (the lower the number, the higher the priority)
+	NVIC_SetPriority(EXTI0_1_IRQn, 3);
+	// Sets priority of SysTick interrupt to 2 (interrupt used for system timing)
+	NVIC_SetPriority(SysTick_IRQn, 2);
+	// Assumed: Default interrupt priority 1: Inhabited by the reset button (RESET btn comes first! duh!)
+	
+	
+	// 2.5 - Writing the EXTI Interrupt Handler
+	//1. Handler name we declared: EXTI0_1_IRQn
+	//2. Declare handler function (we wrote the method below main in this main.c file, and declared it above main.c) 
+	
+	
+	
+  while (1)
+  {
+		HAL_Delay(400);
+		// Toggles PC6 (Red LED)
+		GPIOC->ODR ^= (1<<6);
+  }
+
+	
+}
+
+// While pre-generated interrupt handlers exist in stm32f0xx_it.h,
+// They can be declared anywhere, so we will put them here!
+void EXTI0_1_IRQHandler(void){
+	GPIOC->ODR ^= (1<<8) | (1<<9); // Toggling PC8 and PC9 (green and orange LEDs)
+	
+	 // Delay loop of 1 second(1000ms)
+    for (volatile uint32_t i = 0; i < 1000000; ++i) {
+    }
+	GPIOC->ODR ^= (1<<8) | (1<<9); // Toggling PC8 and PC9 (green and orange LEDs)
+	
+	// Clearing flag for input line 0 of EXTI Pending Register
+	// Done to prevent looping. basically acknowledges its done, no longer pending
+	EXTI->PR |= (1<<0); 
+}
+
+
+
+
+//-----------------------------------------------------------
+
+
 
 /**
   * @brief System Clock Configuration
