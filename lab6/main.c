@@ -80,85 +80,93 @@ uint32_t index = 0;
   * @brief  The application entry point.
   * @retval int
   */
+/**
+  * @brief  The application entry point.
+  * @retval int
+  */
 int main(void)
 {
-  HAL_Init();
-	
-	SystemClock_Config();
-	RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
-	RCC->APB1ENR |= RCC_APB1ENR_DACEN;
-	__HAL_RCC_GPIOC_CLK_ENABLE();
-	__HAL_RCC_GPIOB_CLK_ENABLE();
-	__HAL_RCC_GPIOA_CLK_ENABLE();
-	
-	//LEDs
-	GPIO_InitTypeDef iniStr = {GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9,
-	GPIO_MODE_OUTPUT_PP, GPIO_SPEED_FREQ_LOW, GPIO_NOPULL};
-	HAL_GPIO_Init(GPIOC, &iniStr);
-	
-	//Input Pin PC4 
-	GPIO_InitTypeDef adc = {GPIO_PIN_4, GPIO_MODE_ANALOG, GPIO_SPEED_FREQ_LOW, GPIO_NOPULL};
-	HAL_GPIO_Init(GPIOC, &adc);
-	
-	//Output Pin PA4
-	GPIO_InitTypeDef dac = {GPIO_PIN_4, GPIO_MODE_ANALOG, GPIO_SPEED_FREQ_LOW, GPIO_NOPULL};
-	HAL_GPIO_Init(GPIOA, &dac);
-	
-	__HAL_RCC_ADC1_CLK_ENABLE();
-	//8 Bit Resolution
-	ADC1->CFGR1 |= (1 << 4);
-	ADC1->CFGR1 |= (1 << 13);
-	ADC1->CHSELR |= (1 << 14);
+  HAL_Init(); // Initialize Hardware Abstraction Layer
 
+  SystemClock_Config(); // Configure the system clock
 
-
-—----------------------------------------------------
-	ADC1->CR |= (1 << 31);
-	while(1)
-	{
-			if(~(ADC1->CR) & (1U << 31)) { break; }
-	}
-	ADC1->CR |= (0x1);
-	while(1) {
-		if(ADC1->ISR & (0x1)) {
-			break;
-		}
-	}
-	ADC1->CR |= (1 << 2);
-	__HAL_RCC_DAC1_CLK_ENABLE();
-
-	DAC1->CR |= (1 << 0);
-
+  // Enable GPIO and DAC clocks
+  RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
+  RCC->APB1ENR |= RCC_APB1ENR_DACEN;
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  
+  // Initialize LEDs
+  GPIO_InitTypeDef iniStr = {GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9,
+                             GPIO_MODE_OUTPUT_PP, GPIO_SPEED_FREQ_LOW, GPIO_NOPULL};
+  HAL_GPIO_Init(GPIOC, &iniStr);
+  
+  // Initialize ADC input pin
+  GPIO_InitTypeDef adc = {GPIO_PIN_4, GPIO_MODE_ANALOG, GPIO_SPEED_FREQ_LOW, GPIO_NOPULL};
+  HAL_GPIO_Init(GPIOC, &adc);
+  
+  // Initialize DAC output pin
+  GPIO_InitTypeDef dac = {GPIO_PIN_4, GPIO_MODE_ANALOG, GPIO_SPEED_FREQ_LOW, GPIO_NOPULL};
+  HAL_GPIO_Init(GPIOA, &dac);
+  
+  // Enable ADC clock
+  __HAL_RCC_ADC1_CLK_ENABLE();
+  // Set ADC configuration
+  ADC1->CFGR1 |= (1 << 4); // 8-bit resolution
+  ADC1->CFGR1 |= (1 << 13); // Enable continuous conversion mode
+  ADC1->CHSELR |= (1 << 14); // Select channel 14 (PC4)
+  
+  ADC1->CR |= (1 << 31); // Start ADC calibration
+  while(1)
+  {
+    if(~(ADC1->CR) & (1U << 31)) { break; } // Wait for calibration to finish
+  }
+  ADC1->CR |= (0x1); // Enable ADC
+  while(1) {
+    if(ADC1->ISR & (0x1)) { break; } // Wait for ADC ready flag
+  }
+  ADC1->CR |= (1 << 2); // Start ADC conversion
+  
+  // Enable DAC clock
+  __HAL_RCC_DAC1_CLK_ENABLE();
+  DAC1->CR |= (1 << 0); // Enable DAC
+  
   while (1)
   {
-		uint8_t ADCData = (ADC1->DR & 0xFF);
-		if(ADCData > 50) {
-			GPIOC->ODR |= (1>>7);
-		} else {
-			GPIOC->ODR &= !(1>>7);
-		}
-		if(ADCData > 100) {
-			GPIOC->ODR |= (1>>8);
-		} else {
-			GPIOC->ODR &= !(1>>8);
-		}
-		if(ADCData > 150) {
-			GPIOC->ODR |= (1>>6);
-		} else {
-			GPIOC->ODR &= !(1>>6);
-		}
-		if(ADCData > 200) {
-			GPIOC->ODR |= (1>>9);
-		} else {
-			GPIOC->ODR &= !(1>>9);
-		}
-		DAC1->DHR8R1 = sine_table[index];
-		index++;
-		if(index > 31) {
-			index = 0;
-		}
-		
-		HAL_Delay(1);
+    // Read ADC value
+    uint8_t ADCData = (ADC1->DR & 0xFF);
+    
+    // Control LEDs based on ADC value
+    if(ADCData > 50) {
+      GPIOC->ODR |= (1 << 7);
+    } else {
+      GPIOC->ODR &= ~(1 << 7);
+    }
+    if(ADCData > 100) {
+      GPIOC->ODR |= (1 << 8);
+    } else {
+      GPIOC->ODR &= ~(1 << 8);
+    }
+    if(ADCData > 150) {
+      GPIOC->ODR |= (1 << 6);
+    } else {
+      GPIOC->ODR &= ~(1 << 6);
+    }
+    if(ADCData > 200) {
+      GPIOC->ODR |= (1 << 9);
+    } else {
+      GPIOC->ODR &= ~(1 << 9);
+    }
+    
+    // Output waveform to DAC
+    DAC1->DHR8R1 = sine_table[index];
+    index++;
+    if(index > 31) {
+      index = 0;
+    }
+    
+    HAL_Delay(1); // Delay
   }
 }
 
@@ -172,9 +180,7 @@ void SystemClock_Config(void)
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
-  /** Initializes the RCC Oscillators according to the specified parameters
-  * in the RCC_OscInitTypeDef structure.
-  */
+  // Initialize RCC Oscillators
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
@@ -184,14 +190,12 @@ void SystemClock_Config(void)
     Error_Handler();
   }
 
-  /** Initializes the CPU, AHB and APB buses clocks
-  */
+  // Initialize CPU, AHB and APB buses clocks
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
   {
     Error_Handler();
@@ -208,8 +212,7 @@ void SystemClock_Config(void)
   */
 void Error_Handler(void)
 {
-  /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
+  // User can add his own implementation to report the HAL error return state
   __disable_irq();
   while (1)
   {
@@ -233,5 +236,3 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
-
-
