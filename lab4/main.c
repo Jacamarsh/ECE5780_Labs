@@ -24,26 +24,26 @@
 void TransmitCharacter(char character) {
     const uint32_t USART_TXE_FLAG = USART_ISR_TXE;
 
-    // Wait for the transmit data register to be empty
+    // Wait until the transmit data register is empty
     while (!(USART3->ISR & USART_TXE_FLAG)) {
-        // Loop until register doesnt have a value
+        // Loop until the register is empty
     }
 
-    USART3->TDR = character; // send over the character
+    USART3->TDR = character; // Transmit the character
 }
 
 void CharReader(const char* message) {
-    for (int i = 0; message[i] != '\0'; ++i) { // iterating looking for string
-        TransmitCharacter(message[i]);
+    for (int i = 0; message[i] != '\0'; ++i) { // Iterate through the string
+        TransmitCharacter(message[i]); // Transmit each character
     }
 }
 
 char WaitForUSARTInput(void) {
-    const uint32_t USART_RXNE_FLAG = USART_ISR_RXNE; // get non empty data reg
+    const uint32_t USART_RXNE_FLAG = USART_ISR_RXNE; // Receive data register not empty flag
 
-    // Wait for register to not be empty
+    // Wait until the receive data register is not empty
     while (!(USART3->ISR & USART_RXNE_FLAG)) {
-        // Loop until data present to read
+        // Loop until data is present to read
     }
 
     return (char)(USART3->RDR); // Return the received character
@@ -51,19 +51,19 @@ char WaitForUSARTInput(void) {
 
 void HandleLEDControl(char led, char action) {
     switch (led) {
-        case 'o': // char for orange LED
-        case 'r': // char for red LED
-        case 'g': // char for green LED
-        case 'b': // char for blue LED
+        case 'o': // Character for orange LED
+        case 'r': // Character for red LED
+        case 'g': // Character for green LED
+        case 'b': // Character for blue LED
             if (action == '0' || action == '1' || action == '2') {
-                // LED logic placeholder
+                // Placeholder for LED control logic
                 // GPIOC->ODR modifier based on `led` and `action`
             } else {
-                CharReader("illegal input: Use 0, 1, or 2.\n");
+                CharReader("Illegal input: Use 0, 1, or 2.\n");
             }
             break;
         default:
-            CharReader("illegal color: Use r, g, b, or o.\n");
+            CharReader("Illegal color: Use r, g, b, or o.\n");
             break;
     }
 }
@@ -81,12 +81,12 @@ int main(void) {
     HAL_Init(); 
 
     while (1) {
-        char firstInput = WaitForUSARTInput(); // getting 1st char
-        char secondInput = WaitForUSARTInput(); // getting 2nd char
+        char firstInput = WaitForUSARTInput(); // Get the first character
+        char secondInput = WaitForUSARTInput(); // Get the second character
 
-        HandleLEDControl(firstInput, secondInput); // handles input for LEDs
+        HandleLEDControl(firstInput, secondInput); // Handle LED control input
 
-        HAL_Delay(10); // delay handler
+        HAL_Delay(10); // Delay handler
     }
 }
 
